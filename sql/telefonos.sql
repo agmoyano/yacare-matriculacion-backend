@@ -1,7 +1,7 @@
 ----TELEFONOS DE EMERGENCIA
-SELECT 	pp.id,
+SELECT 	distinct pp.id,
 		phone.id as tel_id, 
-		phone.name as tel_emergencia, 
+		phone.name as tel, 
 		phone.comment as comentario
 FROM 	yacare.physical_person pp 
 JOIN 	yacare.physical_person_phone_list pppl 

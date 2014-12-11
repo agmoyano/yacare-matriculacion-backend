@@ -24,12 +24,16 @@ app.set('view engine', 'jade');
 
 // app.use(favicon(__dirname + '/public/img/favicon.ico'));
 app.use(logger('dev'));
-app.use(bodyParser.json());
+app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded({
-  extended: true
+  extended: true,
+  limit: '50mb'
 }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'frontend', 'app')));
+app.use('/bower_components', express.static(path.join(__dirname, 'frontend', 'bower_components')));
+app.use('/photos', express.static(path.join(__dirname, 'photos')));
 app.use(session({secret: 'uxoo6Ke7', resave: true, saveUninitialized: true}));
 
 /*app.use('/', routes);

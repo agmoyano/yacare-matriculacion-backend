@@ -17,6 +17,38 @@ module.exports = function (grunt) {
         file: 'app.js'
       }
     },
+    'node-inspector': {
+      custom: {
+        options: {
+          'web-port': '9000'
+        }
+      }
+    },
+    nodemon: {
+      debug: {
+        script: 'app.js',
+        options: {
+          nodeArgs: ['--debug-brk'],
+          callback: function (nodemon) {
+            nodemon.on('log', function (event) {
+              console.log(event.colour);
+            });
+
+          }
+        }
+      }
+    },
+    concurrent: {
+      debug: {
+        tasks: [
+          'nodemon',
+          'node-inspector'
+        ],
+        options: {
+          logConcurrentOutput: true
+        }
+      }
+    },
     watch: {
       options: {
         nospawn: true,
@@ -70,6 +102,12 @@ module.exports = function (grunt) {
           done(reloaded);
         });
     }, 500);
+  });
+ 
+  grunt.registerTask('debug', function() {
+    grunt.task.run([
+	'concurrent:debug'
+    ]);
   });
 
   grunt.registerTask('default', ['develop', 'watch']);

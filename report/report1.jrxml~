@@ -1,0 +1,578 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="report1" pageWidth="595" pageHeight="842" columnWidth="511" leftMargin="42" rightMargin="42" topMargin="20" bottomMargin="20" uuid="c06f6664-5ee4-446e-adec-731b0c0a8818">
+	<property name="ireport.zoom" value="1.0"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="152"/>
+	<parameter name="SUBREPORT_DIR" class="java.lang.String" isForPrompting="false">
+		<defaultValueExpression><![CDATA["./"]]></defaultValueExpression>
+	</parameter>
+	<parameter name="id" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[----DATOS ESTUDIANTES
+SELECT 	pp.id,
+		pp.identification_number as nro_documento,
+		ident.id as tipo_documento_id,
+		ident.name as tipo_documento,
+		ident.code as tipo_documento_code,
+		pp.cuil_cuit ,
+		last_name as apellido,
+		pp.name as nombre,
+		case when pp.masculine=true then 'Hombre' else 'Mujer' end as genero,
+		pp.masculine,
+		bg.id as grupo_sanguineo_id,
+		bg.name as grupo_sanguineo,
+		bg.code as grupo_sang_code,
+		bf.id as factor_rh_id,
+		bf.name as factor_rh,
+		bf.code as factor_rh_code,
+		pp.birth_date as nac,
+		nac.citizenship as nacionalidad,
+		--nac.citizenship as nacionalidad,
+		dire.pais as lugar_nacimiento,
+		dire_actual.*,
+		adm_last.id as last_adm_id,
+		adm_last.period_id,
+		adm_last.number as period,
+		adm_last.year_calendar as year_admission,
+		adm_last.turno,
+		adm_last.turno_id,
+		/*substring(adm_last.turno from 1  for (position('.' in adm_last.turno)-1)) as turno,
+		substring(adm_last.turno from (position('.' in adm_last.turno)+1)) as turno_id,*/
+		st.id as student_id,
+		doc.name as foto,
+		doc.id as foto_id
+FROM 	yacare.physical_person pp
+JOIN 	yacare.student st
+on 		pp.id=st.physical_person_id
+left JOIN
+		yacare.blood_group bg
+on 		bg.id=pp.blood_group_id
+left JOIN
+		yacare.blood_factor bf
+on 		bf.id=pp.blood_factor_id
+left JOIN
+		yacare.document_object doc
+on 		doc.id = pp.document_object_id
+join 	yacare.identification_type_person ident
+on 		ident.id=pp.identification_type_person_id
+left JOIN
+		(
+		select ct.id as pais_nac_id,
+			ct.name as pais
+		from 	yacare.country ct
+		) dire
+on 		dire.pais_nac_id=pp.nationality_country_id
+left join
+		yacare.country nac
+on 		nac.id=pp.country_id
+left join
+		(
+		select 	a.*,
+				b.address_id
+		from
+				(
+				select  ppl.physical_person_id as  physical_person_add_id,
+				   		aa.id as address_add_pers_id,
+				   		aa.district_comment as barrio_dom_actual,
+				   		aa.street_comment as calle_actual,
+				   		aa.number as nro_dom_actual,
+				   		aa.floor as piso_dom_actual,
+				   		aa.flat as flat_dom_actual,
+				   		aa.postal_code as codigo_postal_dom_actual,
+				   		aa.building as edificio_dom_actual,
+						aa.comment as comentario_dom_actual,
+				   		city.id as city_dom_actual_id,
+				   		city.name as city_dom_actual,
+				   		dsc.id as departamento_dom_actual_id,
+				   		dsc.name as departamento_dom_actual,
+				   		sc.id as provincia_dom_actual_id,
+				   		sc.name as provincia_dom_actual,
+				   		ct.id as pais_dom_actual_id,
+				   		ct.name as pais_dom_actual
+				from  	yacare.physical_person_address_list ppl
+				join 	yacare.address aa
+				on 		ppl.address_id=aa.id
+						and aa.state_enable=true
+				left join
+						yacare.city city
+				on 		city.id=aa.city_id
+				left join
+						yacare.department_state_country dsc
+				on 		dsc.id=city.id
+			   	left join
+						yacare.state_country sc
+				on 		sc.id=dsc.state_country_id
+			   	left join
+						yacare.country ct
+				on 		ct.id=sc.country_id
+				) a
+		inner join
+			   	(
+				select 	max(address_id) as address_id,
+						physical_person_id
+				from 	yacare.physical_person_address_list
+			    group by
+			    		physical_person_id
+				) b
+		on 		a.address_add_pers_id=b.address_id
+		) dire_actual
+on 		dire_actual.physical_person_add_id=pp.id
+---------------------------traer datos de la ultima admision-----------------
+inner JOIN
+	(
+		/*SELECT 	adm.*,
+				per.number ,
+				(
+					select  (turno.name || '.' || turno.id)  as turno
+					from  	(
+						select *
+						from 	yacare.admission_act
+						where 	state_enable=true
+								and student_id='f493faff-bd48-44e6-a8aa-59a965291e0b'
+								and year_calendar=(adm.year_calendar - 1)
+								and state_enable=true
+					) adm_prev
+					inner join
+							yacare.enrollment enr
+					on 		enr.admission_act_id=adm_prev.id
+					and 	enr.state_enable=true
+					and 	enr.record=true
+					inner join
+							yacare.division_enrollment_list lst
+					on 		lst.enrollment_id=enr.id
+					inner join
+							yacare.division div
+					on 		div.id=lst.division_id
+					inner join
+							yacare.turn turno
+					on 		turno.id=div.turn_id
+				) as turno
+
+		FROM (
+			select 	*
+	      	from 	yacare.admission_act adm
+	      	where 	adm.year_calendar=(
+			         	SELECT 	max(year_calendar)
+			         	FROM 	yacare.admission_act
+			         	where 	student_id='f493faff-bd48-44e6-a8aa-59a965291e0b'
+			         	and 	state_enable=true
+			        )
+	      			and	adm.student_id='f493faff-bd48-44e6-a8aa-59a965291e0b'
+	      			and adm.record=true
+		--Comento estas lineas solo para ver datos... descomentar una vez realizada la admision
+	     -- and not exists (select *
+	     --          from yacare.enrollment
+	     --          where admission_act_id=adm.id)
+	      ) adm
+		inner join
+			yacare.period  per
+		on 	per.id=adm.period_id
+			and per.state_enable=true*/
+		select 	adm.id,
+				adm.period_id,
+				adm.year_calendar,
+				per.number,
+				turno.name as turno,
+				turno.id  as turno_id,
+				adm.student_id
+		FROM 	yacare.admission_act adm
+		left JOIN
+				yacare.admission_act adm_prev
+		ON 		adm.student_id = adm_prev.student_id
+				and adm_prev.year_calendar = adm.year_calendar - 1
+				and adm_prev.state_enable = true
+		left join
+				yacare.enrollment enr
+		on 		enr.admission_act_id=adm_prev.id
+				and enr.state_enable=true
+				and enr.record=true
+		left join
+				yacare.division_enrollment_list lst
+		on 		lst.enrollment_id=enr.id
+		left join
+				yacare.division div
+		on 		div.id=lst.division_id
+		left join
+				yacare.turn turno
+		on 		turno.id=div.turn_id
+		inner join
+			yacare.period  per
+		on 	per.id=adm.period_id
+			and per.state_enable=true
+		inner JOIN
+			(select student_id, max(year_calendar) as year_calendar
+			from 	yacare.admission_act
+			group by student_id
+			) last
+		ON 	last.student_id = adm.student_id
+			and last.year_calendar = adm.year_calendar
+		where	adm.record = true
+
+	) adm_last
+ON 	adm_last.student_id=st.id
+WHERE pp.id=$P{id}]]>
+	</queryString>
+	<field name="id" class="java.lang.String"/>
+	<field name="nro_documento" class="java.lang.String"/>
+	<field name="tipo_documento_id" class="java.lang.String"/>
+	<field name="tipo_documento" class="java.lang.String"/>
+	<field name="tipo_documento_code" class="java.lang.String"/>
+	<field name="cuil_cuit" class="java.lang.String"/>
+	<field name="apellido" class="java.lang.String"/>
+	<field name="nombre" class="java.lang.String"/>
+	<field name="genero" class="java.lang.String"/>
+	<field name="masculine" class="java.lang.Boolean">
+		<fieldDescription><![CDATA[Género [Map Class: org.yacare.cnm.yacare.student.certifiedanalytical.CertifiedAnalytical.masculine]]]></fieldDescription>
+	</field>
+	<field name="grupo_sanguineo_id" class="java.lang.String"/>
+	<field name="grupo_sanguineo" class="java.lang.String"/>
+	<field name="grupo_sang_code" class="java.lang.String"/>
+	<field name="factor_rh_id" class="java.lang.String"/>
+	<field name="factor_rh" class="java.lang.String"/>
+	<field name="factor_rh_code" class="java.lang.String"/>
+	<field name="nac" class="java.sql.Date"/>
+	<field name="nacionalidad" class="java.lang.String"/>
+	<field name="lugar_nacimiento" class="java.lang.String"/>
+	<field name="physical_person_add_id" class="java.lang.String"/>
+	<field name="address_add_pers_id" class="java.lang.String"/>
+	<field name="barrio_dom_actual" class="java.lang.String"/>
+	<field name="calle_actual" class="java.lang.String"/>
+	<field name="nro_dom_actual" class="java.lang.String"/>
+	<field name="piso_dom_actual" class="java.lang.String"/>
+	<field name="flat_dom_actual" class="java.lang.String"/>
+	<field name="codigo_postal_dom_actual" class="java.lang.String"/>
+	<field name="edificio_dom_actual" class="java.lang.String"/>
+	<field name="comentario_dom_actual" class="java.lang.String"/>
+	<field name="city_dom_actual_id" class="java.lang.String"/>
+	<field name="city_dom_actual" class="java.lang.String"/>
+	<field name="departamento_dom_actual_id" class="java.lang.String"/>
+	<field name="departamento_dom_actual" class="java.lang.String"/>
+	<field name="provincia_dom_actual_id" class="java.lang.String"/>
+	<field name="provincia_dom_actual" class="java.lang.String"/>
+	<field name="pais_dom_actual_id" class="java.lang.String"/>
+	<field name="pais_dom_actual" class="java.lang.String"/>
+	<field name="address_id" class="java.lang.String">
+		<fieldDescription><![CDATA[[Map Class: org.yacare.yacare.person.juridical.contact.JuridicalPersonAddress.address]]]></fieldDescription>
+	</field>
+	<field name="last_adm_id" class="java.lang.String"/>
+	<field name="period_id" class="java.lang.String"/>
+	<field name="period" class="java.lang.Integer"/>
+	<field name="year_admission" class="java.lang.Integer"/>
+	<field name="turno" class="java.lang.String"/>
+	<field name="turno_id" class="java.lang.String"/>
+	<field name="student_id" class="java.lang.String"/>
+	<field name="foto" class="java.lang.String"/>
+	<field name="foto_id" class="java.lang.String"/>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<pageHeader>
+		<band height="75">
+			<staticText>
+				<reportElement x="106" y="16" width="343" height="21" uuid="4852c6c4-121a-4589-be5d-8108af157601"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="18" isBold="true" isPdfEmbedded="true"/>
+				</textElement>
+				<text><![CDATA[Colegio Nacional de Monserrat]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="106" y="38" width="402" height="20" uuid="c3e6cefb-93df-4b82-aeeb-b6eed6bc6062"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="14" isBold="true" isPdfEmbedded="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Alumno: "+$F{apellido}+", "+$F{nombre}+"."]]></textFieldExpression>
+			</textField>
+			<image onErrorType="Blank">
+				<reportElement x="31" y="0" width="92" height="75" uuid="b70c259c-2131-4374-8b0e-974dd8a2d8ad"/>
+				<imageExpression><![CDATA["./monserrat-logo.png"]]></imageExpression>
+			</image>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="632" splitType="Stretch">
+			<line>
+				<reportElement x="0" y="5" width="511" height="1" uuid="82898967-10c2-4723-b2f2-0f0efe632300"/>
+				<graphicElement>
+					<pen lineStyle="Double"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="5" y="134" width="504" height="20" uuid="7375b376-9a8c-4de4-a7a2-228853e1a761"/>
+				<textElement markup="styled">
+					<font fontName="Droid Serif" size="14" isBold="true" isPdfEmbedded="true"/>
+				</textElement>
+				<text><![CDATA[DATOS PERSONALES DEL ALUMNO]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="5" y="164" width="355" height="23" uuid="170995d2-af24-4c48-82a6-901526424550"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="14" isBold="true" isPdfEmbedded="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{apellido}+", "+$F{nombre}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="5" y="187" width="355" height="20" uuid="449a42f3-8abd-45e1-801a-2e74ea1d9f1a"/>
+				<textElement markup="styled">
+					<font fontName="Liberation Serif" size="12" isBold="false" isPdfEmbedded="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["<style isBold='true'>"+
+    ( ($F{tipo_documento} == null)?"DNI: ":($F{tipo_documento}+": ") )+
+    ( ($F{nro_documento} == null)?"<style  forecolor='red' isBold='false'>A completar NÚMERO DE DOCUMENTO. </style>":$F{nro_documento} )+
+"</style>"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="5" y="207" width="355" height="20" uuid="f26ac158-1535-4670-a224-dd8a41c0b7c7"/>
+				<textElement markup="styled">
+					<font fontName="Liberation Serif" size="12" isPdfEmbedded="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["<style isBold='true'>"+
+    ( ($F{genero} == null)?"<style  forecolor='red' isBold='false'>A completar GENERO. </style>":($F{genero}+". ") )+
+    ( ($F{grupo_sanguineo} == null)? "<style  forecolor='red' isBold='false'>A completar GRUPO SANGUÍNEO. </style>":("<style isBold='false'>Grupo sanguíneo: </style>"+$F{grupo_sanguineo}) )+
+    ( ($F{factor_rh} == null)?"<style  forecolor='red' isBold='false'>A completar FACTOR RH. </style>":$F{factor_rh} )+
+"</style>"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="5" y="227" width="355" height="20" uuid="f7241a93-9f5b-4ca0-87ca-6a2789aa0c44"/>
+				<textElement markup="styled">
+					<font fontName="Liberation Serif" size="12" isPdfEmbedded="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Nació el <style isBold='true'>"+
+    ( new SimpleDateFormat(" dd 'de' MMMM 'de' yyyy", new Locale("es","AR")) ).format($F{nac})+
+    "</style> en <style isBold='true'>"+
+    ( ($F{lugar_nacimiento} == null)?"<style  forecolor='red' isBold='false'>a completar PAIS DE NACIMIENTO. </style>":$F{lugar_nacimiento} )+
+"</style>."]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="5" y="247" width="355" height="20" uuid="386b5272-f065-447b-b3ff-e80d5b80f231"/>
+				<textElement markup="styled">
+					<font fontName="Liberation Serif" size="12" isPdfEmbedded="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["De nacionalidad <style isBold='true'>"+
+    ( ($F{nacionalidad} == null)?"<style  forecolor='red' isBold='false'>A completar NACIONALIDAD. </style>":($F{nacionalidad}) )+
+"</style>"]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="123" width="509" height="1" uuid="0dee6bb9-e79f-49f2-bee5-a9d093c91667"/>
+				<graphicElement>
+					<pen lineStyle="Double"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="3" y="15" width="506" height="20" uuid="c8f61c07-2138-4dc7-b321-7b7e70deb79e"/>
+				<textElement>
+					<font fontName="Droid Serif" size="14" isBold="true" isPdfEmbedded="true"/>
+				</textElement>
+				<text><![CDATA[MATRICULACIÓN]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="3" y="43" width="506" height="20" uuid="77da207b-1bf6-4e61-8e93-432e38c172db"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="12"/>
+				</textElement>
+				<text><![CDATA[Matriculación en Colegio Nacional de Monserrat.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="3" y="63" width="506" height="20" uuid="c239ef0a-80d2-42d5-8142-ae9f1cf0b83e"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="12"/>
+				</textElement>
+				<text><![CDATA[Bachiller Humanista con Orientación en Humanidades y Ciencias Sociales.]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="80" y="93" width="100" height="20" uuid="f73e2268-ebd8-487e-960a-1c5a595a9186"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="12" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{period}+"º año."]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="220" y="93" width="100" height="20" uuid="9cabd18a-b447-4d2e-a530-1d50d20bdc93"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="12" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($F{turno} == null?" ":("Turno: "+$F{turno}))]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="275" width="508" height="1" uuid="16a4f24b-2c45-412d-af86-02db9714f590"/>
+				<graphicElement>
+					<pen lineStyle="Double"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement x="3" y="287" width="505" height="20" uuid="9be0b4e4-ca6e-4d68-ac69-47be2b9619fa"/>
+				<textElement>
+					<font fontName="Droid Serif" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DOMICILIO ACTUAL DEL ALUMNO]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="3" y="318" width="506" height="20" uuid="7b4c02e6-ff8e-4493-90c7-23e60d508219"/>
+				<textElement markup="styled">
+					<font fontName="Liberation Serif" size="12"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Actualmente <style isBold='true'>"+
+   $F{apellido}+", "+$F{nombre}+
+    "</style> tiene domicilio en <style isBold='true'>"+
+    ( ($F{calle_actual} == null)?"<style  forecolor='red' isBold='false'>A completar DOMICILIO ACTUAL. </style>":$F{calle_actual} )+
+    " "+
+    ( ($F{nro_dom_actual} == null)?"":$F{nro_dom_actual} )+
+"</style>."]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="2" y="338" width="507" height="20" uuid="b9f314b4-f2a7-4831-8ed6-14f4e503f097"/>
+				<textElement markup="styled">
+					<font fontName="Liberation Serif" size="12"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Barrio <style isBold='true'>"+
+    ( ($F{barrio_dom_actual} == null)?"<style  forecolor='red' isBold='false'>a completar. </style>":$F{barrio_dom_actual} )+
+    " "+
+    ( ($F{edificio_dom_actual} == null)?"":("<style isBold='false'>- Edificio: </style>"+$F{edificio_dom_actual}) )+
+    " "+
+    ( ($F{piso_dom_actual} == null)?"":$F{piso_dom_actual} )+
+    ( ($F{flat_dom_actual} == null)?"":$F{flat_dom_actual} )+
+"</style>"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="3" y="358" width="506" height="20" uuid="6d55d642-0326-413a-be46-0f7fd36e2dd2"/>
+				<textElement markup="styled">
+					<font fontName="Liberation Serif" size="12"/>
+				</textElement>
+				<textFieldExpression><![CDATA["<style isBold='true'>"+
+    ( ($F{city_dom_actual} == null)?"<style  forecolor='red' isBold='false'>A completar CIUDAD. </style>":$F{city_dom_actual} )+
+", CÓRDOBA, ARGENTINA.</style>"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="3" y="378" width="506" height="20" uuid="2d30dc88-d640-476b-aafe-67b143690743"/>
+				<textElement markup="styled">
+					<font fontName="Liberation Serif" size="12"/>
+				</textElement>
+				<textFieldExpression><![CDATA["CP: <style isBold='true'>"+
+    ( ($F{codigo_postal_dom_actual} == null)?"<style  forecolor='red' isBold='false'>a completar. </style>":$F{codigo_postal_dom_actual} )+
+"</style>"]]></textFieldExpression>
+			</textField>
+			<line>
+				<reportElement x="0" y="427" width="508" height="1" uuid="7a05ade9-767a-4ee6-b081-587fca36ecbe"/>
+			</line>
+			<staticText>
+				<reportElement x="0" y="440" width="509" height="20" uuid="124f4900-7b68-4287-af5e-f5454b8b175d"/>
+				<textElement>
+					<font fontName="Droid Serif" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DATOS DE LOS TUTORES]]></text>
+			</staticText>
+			<staticText>
+				<reportElement positionType="Float" x="4" y="534" width="504" height="20" uuid="5fe7dc5d-3f2a-484f-aa8d-5a3abf0d221d"/>
+				<textElement>
+					<font fontName="Droid Serif" size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[DATOS DE CONTACTO DE EMERGENCIA]]></text>
+			</staticText>
+			<line>
+				<reportElement positionType="Float" x="3" y="526" width="504" height="1" uuid="e47027f5-2404-4167-a146-42587153f4db"/>
+				<graphicElement>
+					<pen lineStyle="Double"/>
+				</graphicElement>
+			</line>
+			<subreport>
+				<reportElement positionType="Float" x="3" y="465" width="504" height="61" uuid="56d30934-48c0-4b95-9c72-82ad1f153c99"/>
+				<subreportParameter name="id">
+					<subreportParameterExpression><![CDATA[$P{id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="alumno.nombre">
+					<subreportParameterExpression><![CDATA[$F{nombre}]]></subreportParameterExpression>
+				</subreportParameter>
+				<subreportParameter name="alumno.apellido">
+					<subreportParameterExpression><![CDATA[$F{apellido}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression><![CDATA["./report1_subreport1.jasper"]]></subreportExpression>
+			</subreport>
+			<subreport>
+				<reportElement positionType="Float" x="4" y="558" width="503" height="60" uuid="197c0c04-6e05-4f86-91ba-6d6677e7d991"/>
+				<subreportParameter name="id">
+					<subreportParameterExpression><![CDATA[$P{id}]]></subreportParameterExpression>
+				</subreportParameter>
+				<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+				<subreportExpression><![CDATA[$P{SUBREPORT_DIR} + "report1_subreport2.jasper"]]></subreportExpression>
+			</subreport>
+			<frame>
+				<reportElement x="385" y="162" width="100" height="100" uuid="37f7d2db-3e63-4afa-a647-89546910910a"/>
+				<box>
+					<topPen lineWidth="0.25"/>
+					<leftPen lineWidth="0.25"/>
+					<bottomPen lineWidth="0.25"/>
+					<rightPen lineWidth="0.25"/>
+				</box>
+				<image>
+					<reportElement x="0" y="2" width="100" height="98" uuid="f65f1bdd-2d4d-4040-bf50-d106e46aac60"/>
+					<imageExpression><![CDATA["http://nodejs-nodo1-dev.psi.unc.edu.ar:3001/photos/5/5af0a568-796f-11e4-afc8-00f48900a927"]]></imageExpression>
+				</image>
+			</frame>
+			<textField>
+				<reportElement x="3" y="399" width="506" height="20" uuid="b152bcd8-7aae-4a97-ad0d-46467eae742e"/>
+				<textFieldExpression><![CDATA[( ($F{comentario_dom_actual} == null)?" ":($F{comentario_dom_actual}) )]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="26" splitType="Stretch">
+			<textField>
+				<reportElement x="388" y="6" width="80" height="20" uuid="28f3e79e-7f86-4584-a32f-606e255252a7"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA["Página "+$V{PAGE_NUMBER}+" de"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="468" y="6" width="40" height="20" uuid="28551136-4570-41e2-ae2a-c9fcf2215f39"/>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<lastPageFooter>
+		<band height="83">
+			<textField pattern="EEEEE dd MMMMM yyyy">
+				<reportElement positionType="Float" x="52" y="24" width="187" height="20" uuid="4473ebde-0b23-46c8-a12f-73c4c6c93b71"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="12"/>
+				</textElement>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement positionType="Float" x="317" y="4" width="91" height="20" uuid="6ce4fff5-1177-4351-9365-79064a85566b"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="12" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Firma del tutor]]></text>
+			</staticText>
+			<staticText>
+				<reportElement positionType="Float" x="239" y="21" width="265" height="28" uuid="0b703dd0-ffb2-4de3-8401-f70184ee980c"/>
+				<textElement textAlignment="Center">
+					<font fontName="Liberation Serif" size="11"/>
+				</textElement>
+				<text><![CDATA[Esta ficha debe ser firmada frente al preceptor en el
+momento de la matriculación]]></text>
+			</staticText>
+			<line>
+				<reportElement positionType="Float" x="298" y="0" width="130" height="1" uuid="7d19d050-a579-495d-95ae-174d69689131"/>
+				<graphicElement>
+					<pen lineStyle="Dashed"/>
+				</graphicElement>
+			</line>
+			<staticText>
+				<reportElement positionType="Float" x="0" y="24" width="52" height="20" uuid="7a0a4a7e-a985-498d-a8eb-68f1a8aa0e79"/>
+				<textElement>
+					<font fontName="Liberation Serif" size="12"/>
+				</textElement>
+				<text><![CDATA[Córdoba]]></text>
+			</staticText>
+			<textField>
+				<reportElement x="386" y="60" width="80" height="20" uuid="82ce85c0-5ce1-4bec-a28d-131dc2ddccc6"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA["Página "+$V{PAGE_NUMBER}+" de"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="466" y="60" width="40" height="20" uuid="9eb64cac-7980-4a53-8a4a-ac745e762437"/>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</lastPageFooter>
+</jasperReport>

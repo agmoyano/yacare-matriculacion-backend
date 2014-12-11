@@ -1,13 +1,14 @@
 -----TUTORES
-
 SELECT 	pp.id as physical_person_id,
+		famRelship.id_rel_fam,
 		famRelShip.code_rel_fam,
 		famRelShip.name_rel_fam, 
 		tutores.*
 FROM 	yacare.physical_person_family_relationship_list relFam 
 JOIN 
 	   (
-	   	SELECT 	fr.*, 
+	   	SELECT 	fr.*,
+	   			frt.id as id_rel_fam, 
 	   			frt.code as code_rel_fam, 
 	   			frt.name as name_rel_fam 
 	   	from 	yacare.family_relationship fr
@@ -21,22 +22,28 @@ JOIN
 	    (
 	    SELECT 	pp.id as tutor_id, 
 	    		pp.identification_number as dni,
-				ident.name as tipo_identificacion,
-				ident.code as code_identificacion,
-				pp.cuil_cuit,
+	    		ident.id as tipo_documento_id,
+				ident.name as tipo_documento,
+				ident.code as tipo_documento_code,
+				ident.id as tipo_documento_id,
+				pp.cuil_cuit as nro_cuil,
 				last_name as apellido, 
 				pp.name as nombre, 
-				case when pp.masculine is null then '' when pp.masculine=true then 'Masculino' else 'Femenino' end as sexo,
+				case when pp.masculine is null then '' when pp.masculine=true then 'Hombre' else 'Mujer' end as genero,
 				pp.masculine,
-				bg.name as grupo_sang_name,
+				bg.name as grupo_sanguineo,
+				bg.id as grupo_sanguineo_id,
 				bg.code as grupo_sang_code,
-				bf.name as factor_sang_name,
-				bf.code as factor_sang_code,
-				pp.birth_date as fecha_nac,
-				nac.citizenship as nacionalidad,
-				dire.city_nac,
-				dire.department_nac,
-				dire.provincia_nac,
+				bf.name as factor_rh,
+				bf.id as factor_rh_id,
+				bf.code as factor_rh_code,
+				pp.birth_date as fecha_nacimiento,
+
+				nac.id as pais_nacimiento,
+				--nacb.citizenship as nacionalidad,
+
+				--'{"ciudad": '||coalesce('"'||dire.city_nac::varchar||'"', 'null')||', "ciudad_id": '||coalesce('"'||dire.id::varchar||'"', 'null')||', "pais": '||coalesce('"'||dire.pais_nac::varchar||'"', 'null')||', "pais_id": '||coalesce('"'||dire.pais_nac_id::varchar||'"', 'null')||'}' as lugar_nacimiento,
+
 				dire_actual.*,
 				email_tutor.email_id, 
 				email_tutor.email,
@@ -52,28 +59,32 @@ JOIN
 		LEFT join 
 				yacare.identification_type_person ident 
 		on 		ident.id=pp.identification_type_person_id
-		left JOIN 
+		/*left JOIN 
 				( 
 				select 	city.id, 
 						city.name as city_nac, 
 						dsc.name as department_nac, 
 						sc.name as provincia_nac,
-						ct.name as pais_nac
+						ct.name as pais_nac,
+						ct.id as pais_nac_id
 		  		from 	yacare.city city 
-		  		left join 
+		  		inner join 
 		  				yacare.department_state_country dsc 
-		  		on 		dsc.id=city.id
-		  		left join 
+		  		on 		dsc.id=city.department_state_country_id
+		  		inner join 
 		  				yacare.state_country sc 
 		  		on 		sc.id=dsc.state_country_id
-		  		left join 
+		  		inner join 
 		  				yacare.country ct 
 		  		on 		ct.id=sc.country_id 
 		  		) dire 
-		on 		dire.id=pp.birth_address_id
+		on 		dire.id=pp.birth_address_id */
 		left join 
 				yacare.country nac 
 		on 		nac.id=pp.country_id
+		left join 
+				yacare.country nacb 
+		on 		nacb.id = pp.nationality_country_id			
 		left join
 				(
 		   		select 	a.*
@@ -87,10 +98,15 @@ JOIN
 		   						aa.floor as piso_dom_actual,
 		   						aa.flat as flat_dom_actual,
 		   						aa.building as edificio_dom_actual,
+                  aa.comment as comentario_dom_actual,
+								city.id as city_dom_actual_id,
 		   						city.name as city_dom_actual,
 		   						dsc.name as departamento_dom_actual,
 		   						sc.name as provincia_dom_actual,
-		   						ct.name as pais_dom_actual
+		   						sc.id as provincia_dom_actual_id,
+		   						ct.name as pais_dom_actual,
+		   						ct.id as pais_dom_actual_id,
+		   						aa.postal_code as cp_dom_actual
 		   				from  	yacare.physical_person_address_list ppl
 		   				join 	yacare.address aa 
 		   				on 		ppl.address_id=aa.id 
