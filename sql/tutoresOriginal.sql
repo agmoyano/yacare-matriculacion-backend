@@ -5,7 +5,7 @@ SELECT 	pp.id as physical_person_id,
 		famRelShip.name_rel_fam, 
 		tutores.*
 FROM 	yacare.physical_person_family_relationship_list relFam 
-LEFT JOIN 
+JOIN 
 	   (
 	   	SELECT 	fr.*,
 	   			frt.id as id_rel_fam, 
@@ -190,4 +190,3 @@ on 		relFam.physical_person_id = pp.id
 inner JOIN 
 		yacare.student st 
 on 		pp.id=st.physical_person_id
-

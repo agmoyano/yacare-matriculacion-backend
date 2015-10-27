@@ -363,7 +363,7 @@ WHERE pp.id=$P{id}]]>
 				<textElement>
 					<font fontName="Droid Serif" size="14" isBold="true" isPdfEmbedded="true"/>
 				</textElement>
-				<text><![CDATA[MATRICULACIÓN]]></text>
+				<text><![CDATA[MATRICULACIÓN 2015]]></text>
 			</staticText>
 			<staticText>
 				<reportElement x="3" y="43" width="506" height="20" uuid="77da207b-1bf6-4e61-8e93-432e38c172db"/>

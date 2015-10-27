@@ -28,7 +28,9 @@ SELECT 	pp.id,
 		adm_last.turno_id,
 		/*substring(adm_last.turno from 1  for (position('.' in adm_last.turno)-1)) as turno,
 		substring(adm_last.turno from (position('.' in adm_last.turno)+1)) as turno_id,*/
-		st.id as student_id
+		st.id as student_id,
+		doc.name as foto,
+		doc.id as foto_id
 FROM 	yacare.physical_person pp
 JOIN 	yacare.student st 
 on 		pp.id=st.physical_person_id
@@ -38,6 +40,9 @@ on 		bg.id=pp.blood_group_id
 left JOIN 	
 		yacare.blood_factor bf 
 on 		bf.id=pp.blood_factor_id
+left JOIN
+		yacare.document_object doc
+on 		doc.id = pp.document_object_id
 join 	yacare.identification_type_person ident 
 on 		ident.id=pp.identification_type_person_id
 left JOIN 
@@ -64,6 +69,7 @@ left join
 				   		aa.flat as flat_dom_actual,
 				   		aa.postal_code as codigo_postal_dom_actual,
 				   		aa.building as edificio_dom_actual,
+						aa.comment as comentario_dom_actual,
 				   		city.id as city_dom_actual_id,
 				   		city.name as city_dom_actual,
 				   		dsc.id as departamento_dom_actual_id,
@@ -114,6 +120,7 @@ inner JOIN
 								and student_id='f493faff-bd48-44e6-a8aa-59a965291e0b'
 								and year_calendar=(adm.year_calendar - 1)  
 								and state_enable=true
+								and year_calendar='2015'
 					) adm_prev
 					inner join 
 							yacare.enrollment enr 
@@ -193,5 +200,4 @@ inner JOIN
 
 	) adm_last
 ON 	adm_last.student_id=st.id
-
-where	pp.id = $1
+AND 	adm_last.year_calendar = 2015

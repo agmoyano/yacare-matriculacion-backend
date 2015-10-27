@@ -1,5 +1,5 @@
 ----DATOS ESTUDIANTES
-SELECT 	pp.id,
+SELECT 	pp.id as physical_person_id,
 		pp.identification_number as nro_documento,
 		ident.id as tipo_documento_id,
 		ident.name as tipo_documento,
@@ -120,6 +120,7 @@ inner JOIN
 								and student_id='f493faff-bd48-44e6-a8aa-59a965291e0b'
 								and year_calendar=(adm.year_calendar - 1)  
 								and state_enable=true
+								and year_calendar='2015'
 					) adm_prev
 					inner join 
 							yacare.enrollment enr 
@@ -196,8 +197,7 @@ inner JOIN
 		ON 	last.student_id = adm.student_id
 			and last.year_calendar = adm.year_calendar
 		where	adm.record = true
+			AND adm.year_calendar = (select yacare.getYearCalendarActive())
 
 	) adm_last
 ON 	adm_last.student_id=st.id
-
-where	pp.id = $1
