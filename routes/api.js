@@ -53,15 +53,17 @@ module.exports = function(config) {
 					"(id, state_enable, created_date, " +
 						"record, admission_act_id, type_state_enrolled_id, " +
 						"state_lc) " +
-					"select a.id, true, now(), false, $2::varchar, (SELECT id FROM yacare.type_state_enrolled WHERE code = '1'), 'D' " +
+					"select $1, true, now(), false, a.id, (SELECT id FROM yacare.type_state_enrolled WHERE code = '1'), 'D' "+
 					"from 	yacare.admission_act a "+
 					"left join "+
-					" 		yacare.enrollment e "+
+					"		yacare.enrollment e "+
 					"on		a.id = e.admission_act_id "+
-					"		and e.state_enable = true "+
-					"where 	e.id is null "+
-					"		and a.id = $1 ";
+					" 		and e.state_enable = true "+
+					"where 	a.id = $2 "+
+					"		and e.id is null ";
 					var params = [uuid.v4(), mat.id];
+					console.log(sql);
+					console.log(params);
 					client.query(sql, params, cb);
 				}
 			],
@@ -95,7 +97,9 @@ module.exports = function(config) {
     }); //cieerro get
 
 	router.get('/logout', function(req, res, next) {
+		console.log('pre-session: '+JSON.stringify(req.session));
 		req.session.destroy();
+		console.log('session: '+JSON.stringify(req.session));
 		res.send({status: 'ok', message: 'sesion destruida'});
 	});
 
@@ -111,7 +115,7 @@ module.exports = function(config) {
 		console.log(req.body);
 		for(var i in req.body) {
 			params.push(req.body[i]);
-			sql_add.push("regexp_replace(lower("+i+"), '\\\\.', '', 'g') = regexp_replace(lower($"+n+"), '\\\\.', '', 'g')");
+			sql_add.push("regexp_replace(lower("+i+"), E'\\\\.', '', 'g') = regexp_replace(lower($"+n+"), '\\\\.', '', 'g')");
 			n++;
 		}
 
@@ -119,17 +123,27 @@ module.exports = function(config) {
 			return next({status: 400, message: 'Debe contestar al menos 2 preguntas sobre un tutor.'});
 		}*/
 		var client = new pg.Client(config.pg.connStr);
+		console.log(config.pg.connStr);
 		client.connect(function(err) {
-			if(err) return next(err);
-			var sql = fs.readFileSync(path.resolve(__dirname, '../sql', 'tutores.sql')).toString()+' where '+sql_add.join(' and ');
+			if(err) {
+				console.log(err);
+				return next(err);
+			}
+			var sql = fs.readFileSync(path.resolve(__dirname, '../sql', 'datos_estudiantes.sql')).toString()+' where '+sql_add.join(' and ');
+			console.log(sql);
 			client.query(sql, params, function(err, result) {
-				if(err) return next(err);
+				client.end();
+				console.log('algo '+result);
+				if(err) {
+					console.log(err);
+					return next(err);
+				}
 				if(result&&result.rows.length) {
-					req.session.uid = result.rows[0].physical_person_id;
 
+					req.session.uid = result.rows[0].physical_person_id;
+					console.log('post-session: '+JSON.stringify(req.session));
 					res.json({status: 'ok', message: 'Válido'});
 				} else {
-					client.end();
 					next({status: 401, message: 'Los datos ingresados no coinciden con los registros.'});
 				}
 			});
@@ -277,7 +291,7 @@ module.exports = function(config) {
 		var client = new pg.Client(config.pg.connStr);
 		client.connect(function(err) {
 			if(err) return next(err);
-			var sql = fs.readFileSync(path.resolve(__dirname, '../sql', 'datos_estudiantes.sql')).toString();
+			var sql = fs.readFileSync(path.resolve(__dirname, '../sql', 'datos_estudiantes.sql')).toString()+" where	pp.id = $1 ";
 			client.query(sql, [req.session.uid], function(err, result) {
 				client.end();
 				if(err||!result||!result.rows.length) return next(err||{status: 401, message: 'No esta autorizado para realizar esta acción.'});
@@ -495,15 +509,16 @@ module.exports = function(config) {
 									"returning doc.id ";
 								client.query(sql, [req.session.uid], function(err, result) {
 									if(err) return cb(err);
+									console.log(result);
 									if(!result.rows.length) {
 										var sql = 
 											"insert into yacare.document_object "+
-											"			(id, state_enable, name) "+
-											"values 	(uuid_generate_v4(), true, $1::varchar) "+
+											"			(name) "+
+											"values 	($1::varchar) "+
 											"returning id ";
 										client.query(sql, [req.session.uid], function(err, result) {
 											if(err) return cb(err);
-											if(result.rows.length) {
+											if(!result.rows.length) {
 												var sql = 
 													"update yacare.physical_person "+
 													"set 	document_object_id = $1 "+
@@ -530,7 +545,7 @@ module.exports = function(config) {
    							client.query(
 
    								"insert into yacare.city(id, state_enable, name, department_state_country_id) "+
-   								"select uuid_generate_v4(), true, t.name, '02c2b19f-de3a-4d59-9d7b-8deefea2b12b'::varchar "+
+   								"select uuid_generate_v4(), true, t.name, (select id from yacare.department_state_country where code='AR-X')::varchar "+
    								"from (select $1::varchar as name) as t "+
    								"left join yacare.city on yacare.city.name = t.name "+
    								"where yacare.city.name is null",
@@ -542,7 +557,7 @@ module.exports = function(config) {
 
    									client.query(
 										"update yacare.address "+
-										"	set city_id=(SELECT id FROM yacare.city WHERE name=$2), "+
+										"	set city_id=(SELECT id FROM yacare.city WHERE name=$2 and department_state_country_id=(select id from yacare.department_state_country where code='AR-X')::varchar), "+
 										"	district_comment=$3,"+
 										"	street_comment=$4,"+
 										"	number=$5,"+
@@ -729,29 +744,117 @@ module.exports = function(config) {
       	                                		client.query(
 
 					   								"insert into yacare.city(id, state_enable, name, department_state_country_id) "+
-					   								"select uuid_generate_v4(), true, t.name, (select id from yacare.department_state_country where state_country_id=$1 limit 1)::varchar "+
-					   								" from (select $2::varchar as name) as t "+
-					   								"left join yacare.city on yacare.city.name = t.name "+
-					   								"where yacare.city.name is null",
+													"select uuid_generate_v4(), true, $2, "+
+													"(select id from yacare.department_state_country where state_country_id=$1 order by name limit 1)::varchar "+
+													"from (select $2::varchar as name) as t "+
+													"WHERE NOT EXISTS "+
+													"(SELECT C.* FROM YACARE.CITY C JOIN YACARE.department_state_country D ON C.department_state_country_ID = D.ID "+
+													"JOIN YACARE.state_country SC ON SC.ID = D.state_country_id AND SC.ID = $1 "+
+													"WHERE C.NAME = T.NAME)",
 
 					   								[da.provincia_id, da.ciudad.toUpperCase()], 
 
 					   								function(err, result) {
    														if(err) return cb(err);
-   														sql = "UPDATE yacare.address "+
-		                                           			"SET city_id=(SELECT id FROM yacare.city WHERE name=$2 limit 1), " +
-		                                           			"district_comment=$3, "+
-		                                           			"street_comment=$4, "+
-		                                           			"number=$5, "+
-		                                           			"floor=$6, "+
-		                                           			"flat=$7, "+
-		                                           			"building=$8, "+
-		                                           			"postal_code=$9, "+
-		                                           			"comment=$10 "+
-		                                           			"where id=$1";
+   														sql = "UPDATE yacare.address a SET "+
+		                                           					"city_id= ( "+
+		                                           						"SELECT id " +
+		                                           						"FROM yacare.city " +
+		                                           						"WHERE name=$2::varchar and "+
+		                                           							"department_state_country_id= ("+
+			                                           							"select id "+
+			                                           							"from yacare.department_state_country "+
+			                                           							"where state_country_id=$11 order by name limit 1"+
+		                                           							")"+
+																	"), " +
+				                                           			"district_comment=$3, "+
+				                                           			"street_comment=$4, "+
+				                                           			"number=$5, "+
+				                                           			"floor=$6, "+
+				                                           			"flat=$7, "+
+				                                           			"building=$8, "+
+				                                           			"postal_code=$9, "+
+				                                           			"comment=$10 "+
+				                                           		"where a.id=$1";
 
 				                                        params = [
-				                                            da.id,
+				                                            da.id, // $1
+				                                            da.ciudad.toUpperCase(), // $2
+				                                            da.barrio, // $3
+				                                            da.calle, // $4
+				                                            da.nro, // $5
+				                                            da.piso, // $6
+				                                            da.depto, // $7
+				                                            da.edificio, // $8
+				                                            da.cp, // $9
+				                                            da.comentario, // $10
+				                                            da.provincia_id // $11
+				                                        ];
+		                                        		client.query(sql, params, cb);
+   													}
+   												);
+
+    	                                	} else {
+
+    	                                		client.query(
+
+    	                                			"insert into yacare.city(id, state_enable, name, department_state_country_id) "+
+													"select uuid_generate_v4(), true, $2, "+
+													"(select id from yacare.department_state_country where state_country_id=$1 order by name limit 1)::varchar "+
+													"from (select $2::varchar as name) as t "+
+													"WHERE NOT EXISTS "+
+													"(SELECT C.* FROM YACARE.CITY C JOIN YACARE.department_state_country D ON C.department_state_country_ID = D.ID "+
+													"JOIN YACARE.state_country SC ON SC.ID = D.state_country_id AND SC.ID = $1 "+
+													"WHERE C.NAME = T.NAME)",
+
+					   								[da.provincia_id, da.ciudad.toUpperCase()], 
+					   								function(err, result) {
+					   									if(err) return cb(err);
+														sql =  "insert into yacare.address "+
+                        	                        		   		"(id, city_id, district_comment, street_comment, number,floor,flat, building, postal_code, comment, state_enable) "+
+                                	                		   "values" + 
+                                	                		   		"($1, "+
+                                	                		   		"(SELECT id FROM yacare.city WHERE name=$2 and "+
+		                                           			   		"department_state_country_id=(select id from yacare.department_state_country where state_country_id=$11 order by name limit 1)), "+
+                                	                		   		"$3, $4, $5, $6, $7, $8, $9, $10, true) "+
+                                        	        		   		"returning id";
+                                        	        	params = [
+				                                            uuid.v4(),
+				                                            da.ciudad.toUpperCase(),
+				                                            da.barrio,
+				                                            da.calle,
+				                                            da.nro,
+				                                            da.piso,
+				                                            da.depto,
+				                                            da.edificio,
+				                                            da.cp,
+				                                            da.comentario,
+				                                            da.provincia_id
+				                                        ];
+
+				                                        client.query(
+		                                        			sql, 
+		                                        			params, 
+		                                        			function(err, result) {
+			        	                                        if(err) return cb(err);
+			    	        	                                sql =
+			        	        	                                "insert into yacare.physical_person_address_list "+
+			                	        	                        "               (address_id, physical_person_id) "+
+			                        	        	                "values ($1, $2) ";
+			                                    	        	client.query(sql, [result.rows[0].id, data.tutor], cb);
+                                                			}
+		                                        		);
+					   								});
+    	                                	}
+/*
+					   								function(err, result) {
+   														if(err) return cb(err);
+   														sql =  "insert into yacare.address "+
+                        	                        		   "(id, city_id, district_comment, street_comment, number,floor,flat, building, postal_code, comment, state_enable) "+
+                                	                			"values ($1, (SELECT id FROM yacare.city WHERE name=$2 limit 1), $3, $4, $5, $6, $7, $8, $9, $10, true) "+
+                                        	        			"returning id";
+				                                        params = [
+				                                            uuid.v4(),
 				                                            da.ciudad.toUpperCase(),
 				                                            da.barrio,
 				                                            da.calle,
@@ -763,17 +866,27 @@ module.exports = function(config) {
 				                                            da.comentario
 				                                        ];
 
-		                                        		client.query(sql, params, cb);
-
+		                                        		client.query(
+		                                        			sql, 
+		                                        			params, 
+		                                        			function(err, result) {
+			        	                                        if(err) return cb(err);
+			    	        	                                sql =
+			        	        	                                "insert into yacare.physical_person_address_list "+
+			                	        	                        "               (address_id, physical_person_id) "+
+			                        	        	                "values ($1, $2) ";
+			                                    	        	client.query(sql, [result.rows[0].id, data.tutor], cb);
+                                                			}
+		                                        		);
    													}
    												);
 
-    	                                	} else {
-        	                                	sql =
-            	                                	"insert into yacare.address "+
-                        	                        "       (id, city_id, district_comment, street_comment, number,floor,flat, building, postal_code, comment, state_enable) "+
-                                	                "values ($1, (SELECT id FROM yacare.city WHERE name=$2), $3, $4, $5, $6, $7, $8, $9, $10, true) "+
-                                        	        "returning id";
+    	                                		
+        	                                	sql =  "insert into yacare.address "+
+                        	                        		   "(id, city_id, district_comment, street_comment, number,floor,flat, building, postal_code, comment, state_enable) "+
+                                	                			"values ($1, (SELECT id FROM yacare.city WHERE name=$2 limit 1), $3, $4, $5, $6, $7, $8, $9, $10, true) "+
+                                        	        			"returning id";
+            	                                	
     	                                        params = [
     	                                        	uuid.v4(),
         	                                        da.ciudad,
@@ -794,7 +907,8 @@ module.exports = function(config) {
                         	        	                "values ($1, $2) ";
                                     	        	client.query(sql, [result.rows[0].id, data.tutor], cb);
                                                 });	
-											}
+												
+											}*/
 										}],
 										phone: ['tutor', function(cb, data){
 											//telefono
